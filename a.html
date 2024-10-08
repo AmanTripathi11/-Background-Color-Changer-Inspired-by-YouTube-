@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      display: flex;
+      justify-content: center;  /* Center horizontally */
+      align-items: center;      /* Center vertically */
+      transition: background 1.5s ease;  /* Smoother background color transitions */
+    }
+
+    #video-player {
+      box-shadow: 0 0 20px 10px rgba(0, 0, 0, 0.5);
+      transition: box-shadow 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <video id="video-player" controls>
+    <source src="Your_Video.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  
+  <canvas id="video-canvas" style="display:none;"></canvas>
+
+  <script>
+    const video = document.getElementById('video-player');
+    const canvas = document.getElementById('video-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Function to get the average color from a small region near a corner (more pixels for smoother transitions)
+    function getAverageColorInRegion(x, y, width, height) {
+      const imageData = ctx.getImageData(x, y, width, height).data;
+      let r = 0, g = 0, b = 0;
+      const totalPixels = (width * height);
+
+      // Sum the colors of all pixels in the region
+      for (let i = 0; i < imageData.length; i += 4) {
+        r += imageData[i];
+        g += imageData[i + 1];
+        b += imageData[i + 2];
+      }
+
+      // Calculate the average color
+      r = Math.floor(r / totalPixels);
+      g = Math.floor(g / totalPixels);
+      b = Math.floor(b / totalPixels);
+
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    // Function to get colors from the video frame's four corners
+    function getCornerColors() {
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+
+      // Sample a small region of pixels from each corner for a smoother color change
+      const cornerSize = 10;  // Sample 10x10 pixel regions
+
+      const topLeft = getAverageColorInRegion(0, 0, cornerSize, cornerSize);  // Top-left corner
+      const topRight = getAverageColorInRegion(width - cornerSize, 0, cornerSize, cornerSize);  // Top-right corner
+      const bottomLeft = getAverageColorInRegion(0, height - cornerSize, cornerSize, cornerSize);  // Bottom-left corner
+      const bottomRight = getAverageColorInRegion(width - cornerSize, height - cornerSize, cornerSize, cornerSize);  // Bottom-right corner
+
+      return { topLeft, topRight, bottomLeft, bottomRight };
+    }
+
+    // Apply background gradient based on corner colors
+    function applyGradientBackground() {
+      const { topLeft, topRight, bottomLeft, bottomRight } = getCornerColors();
+
+      // Use CSS gradient to create smooth transitions between corner colors
+      document.body.style.background = `linear-gradient(to top left, ${bottomRight}, ${topLeft}), 
+                                        linear-gradient(to top right, ${bottomLeft}, ${topRight})`;
+    }
+
+    video.addEventListener('play', () => {
+      const interval = setInterval(() => {
+        if (!video.paused && !video.ended) {
+          // Draw the current video frame to the canvas
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // Update the background based on the current frame's corner colors
+          applyGradientBackground();
+        } else {
+          clearInterval(interval);
+        }
+      }, 0);  // Update every 100ms for smoother transition
+    });
+  </script>
+</body>
+</html>
